@@ -11,7 +11,7 @@ ARG PGVECTOR_VERSION
 
 LABEL maintainer="TypeORM"
 LABEL description="PostgreSQL with PostGIS and pgvector extensions for TypeORM"
-LABEL org.opencontainers.image.source="https://github.com/typeorm/postgres-test-images"
+LABEL org.opencontainers.image.source="https://github.com/typeorm/docker"
 
 # Install base dependencies, setup PGDG repository, and install build tools
 # Note: PG_MAJOR is provided by the official postgres base image
