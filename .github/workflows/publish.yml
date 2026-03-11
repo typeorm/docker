@@ -59,7 +59,7 @@ jobs:
           tags: |
             type=raw,value=pg${{ matrix.pg_major_version }}-postgis${{ matrix.postgis_major_version }}-pgvector${{ matrix.pgvector_tag }}
             type=raw,value=latest,enable=${{ matrix.latest_tag_suffix }}
-            type=ref,event=tag # Add tag from git tag if event is a tag push (e.g., v1.0.0)
+            type=ref,event=tag
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
