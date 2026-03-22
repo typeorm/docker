@@ -60,7 +60,7 @@ jobs:
           tags: |
             type=raw,value=postgres-${{ matrix.pg_version }}-postgis-${{ matrix.postgis_version }}-pgvector-${{ matrix.pgvector_version }}
             type=raw,value=latest,enable=${{ matrix.latest }}
-            type=ref,event=tag
+            type=ref,event=tag,enable=${{ matrix.latest }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
