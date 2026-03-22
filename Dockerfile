@@ -38,7 +38,7 @@ RUN set -eux \
         "postgresql-${PG_MAJOR}-postgis-${POSTGIS_MAJOR}-scripts=${POSTGIS_VERSION}+dfsg*" \
     && git clone --branch "v${PGVECTOR_VERSION}" --depth 1 https://github.com/pgvector/pgvector.git /usr/src/pgvector \
     && cd /usr/src/pgvector \
-    && make \
+    && make OPTFLAGS="" \
     && make install \
     && apt-get purge -y --auto-remove \
         build-essential \
