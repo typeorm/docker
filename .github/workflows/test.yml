@@ -7,24 +7,28 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  load-versions:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: set-matrix
+        run: |
+          MATRIX=$(jq -c '{include: [.[] | . as $v | {runner: "ubuntu-latest"}, {runner: "ubuntu-24.04-arm"} | . + $v]}' versions.json)
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: load-versions
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
     strategy:
-      matrix:
-        include:
-          - pg_version: "17.9"
-            postgis_version: "3.6.2"
-            pgvector_version: "0.8.2"
-          - pg_version: "16.13"
-            postgis_version: "3.6.2"
-            pgvector_version: "0.8.2"
-          - pg_version: "15.17"
-            postgis_version: "3.6.2"
-            pgvector_version: "0.8.2"
-          - pg_version: "14.22"
-            postgis_version: "3.6.2"
-            pgvector_version: "0.8.2"
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.load-versions.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v6
@@ -42,36 +46,76 @@ jobs:
             PG_VERSION=${{ matrix.pg_version }}
             POSTGIS_VERSION=${{ matrix.postgis_version }}
             PGVECTOR_VERSION=${{ matrix.pgvector_version }}
+          cache-from: type=gha,scope=${{ matrix.pg_version }}-${{ matrix.runner }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.pg_version }}-${{ matrix.runner }}
 
-      - name: Start PostgreSQL container and test extensions
+      - name: Start PostgreSQL container
+        env:
+          PG_VERSION: ${{ matrix.pg_version }}
+          RUNNER: ${{ matrix.runner }}
         run: |
-          IMAGE_TAG="postgres-test:pg${{ matrix.pg_version }}"
-          echo "Testing image: $IMAGE_TAG"
+          IMAGE_TAG="postgres-test:pg${PG_VERSION}"
+          echo "Testing image: $IMAGE_TAG (runner: $RUNNER)"
 
           docker run -d --name test-db \
             -e POSTGRES_PASSWORD=test \
             -e POSTGRES_USER=test \
             -e POSTGRES_DB=test \
-            $IMAGE_TAG \
+            --health-cmd="pg_isready -U test -d test" \
+            --health-interval=2s \
+            --health-timeout=5s \
+            --health-retries=30 \
+            "$IMAGE_TAG" \
             postgres -c shared_preload_libraries=vector
 
-          echo "Waiting for PostgreSQL to start..."
-          sleep 15
+          echo "Waiting for PostgreSQL to become healthy..."
+          until [ "$(docker inspect -f '{{.State.Health.Status}}' test-db)" = "healthy" ]; do
+            if [ "$(docker inspect -f '{{.State.Status}}' test-db)" != "running" ]; then
+              echo "Container exited unexpectedly!"
+              docker logs test-db
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "PostgreSQL is ready."
 
-          echo "PostgreSQL logs:"
-          docker logs test-db
-
+      - name: Test PostGIS extension
+        run: |
           echo "Checking PostGIS version..."
           docker exec test-db psql -U test -d test -c "SELECT postgis_full_version();"
 
+          echo "Testing PostGIS spatial functionality..."
+          docker exec test-db psql -U test -d test -c "SELECT ST_AsText(ST_Point(1, 2));"
+
+      - name: Test pgvector extension
+        run: |
           echo "Checking pgvector extension version..."
           docker exec test-db psql -U test -d test -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname = 'vector';"
 
-          echo "Attempting to create a table with a vector column and insert data..."
+          echo "Testing vector operations..."
           docker exec test-db psql -U test -d test -c "CREATE TABLE items (id bigserial PRIMARY KEY, embedding vector(3)); INSERT INTO items (embedding) VALUES ('[1,2,3]'), ('[4,5,6]'); SELECT COUNT(*) FROM items;"
+
+      - name: Verify installed versions match requested
+        env:
+          EXPECTED_PGVECTOR: ${{ matrix.pgvector_version }}
+          EXPECTED_POSTGIS: ${{ matrix.postgis_version }}
+        run: |
+          ACTUAL_PGVECTOR=$(docker exec test-db psql -U test -d test -tAc \
+            "SELECT extversion FROM pg_extension WHERE extname = 'vector';")
+          if [ "$ACTUAL_PGVECTOR" != "$EXPECTED_PGVECTOR" ]; then
+            echo "FAIL: expected pgvector $EXPECTED_PGVECTOR, got $ACTUAL_PGVECTOR"
+            exit 1
+          fi
+          echo "pgvector version OK: $ACTUAL_PGVECTOR"
+
+          ACTUAL_POSTGIS=$(docker exec test-db psql -U test -d test -tAc \
+            "SELECT extversion FROM pg_extension WHERE extname = 'postgis';")
+          if [ "$ACTUAL_POSTGIS" != "$EXPECTED_POSTGIS" ]; then
+            echo "FAIL: expected PostGIS $EXPECTED_POSTGIS, got $ACTUAL_POSTGIS"
+            exit 1
+          fi
+          echo "PostGIS version OK: $ACTUAL_POSTGIS"
 
       - name: Stop and remove container
         if: always()
-        run: |
-          docker stop test-db || true
-          docker rm test-db || true
+        run: docker rm -f test-db || true
