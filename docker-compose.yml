@@ -12,8 +12,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-test}
       POSTGRES_DB: ${POSTGRES_DB:-test}
       ADDITIONAL_DATABASES: ${ADDITIONAL_DATABASES:-}
-      # The following build args are available while building the image:
-      # PG_VERSION, POSTGIS_VERSION, PGVECTOR_VERSION
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
