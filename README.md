@@ -14,16 +14,16 @@ Pre-built images are available on GitHub Container Registry (GHCR). Replace `you
 
 Example tags (refer to `versions.json` and the `publish.yml` workflow matrix for all combinations):
 
-- `ghcr.io/yourusername/yourrepositoryname:postgres-18.3-postgis-3.6.2-pgvector-0.8.2`
+- `ghcr.io/yourusername/yourrepositoryname:postgres-18.6-postgis-3.6.4-pgvector-0.8.6`
 - `ghcr.io/yourusername/yourrepositoryname:latest` (points to the default latest combination)
 
 ## Build Arguments
 
 The following build arguments can be used with `docker build --build-arg VAR=value` or via the `args` section in `docker-compose.yml` (which can use environment variables from your `.env` file):
 
-- `PG_VERSION`: PostgreSQL image tag (default: 18.3). In `docker-compose.yml`, fed by the `PG_VERSION` env var.
-- `POSTGIS_VERSION`: PostGIS package version (default: 3.6.2). In `docker-compose.yml`, fed by the `POSTGIS_VERSION` env var.
-- `PGVECTOR_VERSION`: pgvector release version (e.g., `0.8.2`, default: `0.8.2`). In `docker-compose.yml`, fed by the `PGVECTOR_VERSION` env var.
+- `PG_VERSION`: PostgreSQL image tag (default: 18.6). In `docker-compose.yml`, fed by the `PG_VERSION` env var.
+- `POSTGIS_VERSION`: PostGIS package version (default: 3.6.4). In `docker-compose.yml`, fed by the `POSTGIS_VERSION` env var.
+- `PGVECTOR_VERSION`: pgvector release version (e.g., `0.8.6`, default: `0.8.6`). In `docker-compose.yml`, fed by the `PGVECTOR_VERSION` env var.
 
 ## Building the Image
 
@@ -51,12 +51,13 @@ docker run -d \\
   -e POSTGRES_PASSWORD=yourpassword \\
   -e POSTGRES_USER=youruser \\
   -e POSTGRES_DB=yourdb \\
+  -e PGDATA=/var/lib/postgresql/pgdata \\
   -p 5432:5432 \\
   -v postgres_data_volume:/var/lib/postgresql \\
   your-image-name postgres -c shared_preload_libraries=vector
 ```
 
-For PostgreSQL 18+, mount the parent directory at `/var/lib/postgresql` so the default data directory (`/var/lib/postgresql/18/docker`) is persisted. This parent-directory mount also works for PostgreSQL 17 and earlier.
+Mount the parent directory at `/var/lib/postgresql` and set `PGDATA` to a subdirectory inside that mount (for example `/var/lib/postgresql/pgdata`). This keeps persistence working for both PostgreSQL 18+ and PostgreSQL 17 and earlier, whose upstream images use different default data directories and volume layouts.
 
 ### Using `docker-compose.yml`
 
@@ -69,16 +70,17 @@ services:
     build:
       context: .
       args:
-        PG_VERSION: ${PG_VERSION:-18.3}
-        POSTGIS_VERSION: ${POSTGIS_VERSION:-3.6.2}
-        PGVECTOR_VERSION: ${PGVECTOR_VERSION:-0.8.2}
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    command: postgres -c shared_preload_libraries=vector # Ensures pgvector preloading
+        PG_VERSION: ${PG_VERSION:-18.6}
+        POSTGIS_VERSION: ${POSTGIS_VERSION:-3.6.4}
+        PGVECTOR_VERSION: ${PGVECTOR_VERSION:-0.8.6}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test} # TypeORM test default
       POSTGRES_USER: ${POSTGRES_USER:-test} # TypeORM test default
       POSTGRES_DB: ${POSTGRES_DB:-test} # TypeORM test default
+      PGDATA: /var/lib/postgresql/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    command: postgres -c shared_preload_libraries=vector # Ensures pgvector preloading
       # ... other environment variables ...
 ```
 
@@ -86,9 +88,9 @@ Create a `.env` file in the same directory as `docker-compose.yml` to set build 
 
 ```env
 # .env (example)
-PG_VERSION=18.3
-POSTGIS_VERSION=3.6.2
-PGVECTOR_VERSION=0.8.2
+PG_VERSION=18.6
+POSTGIS_VERSION=3.6.4
+PGVECTOR_VERSION=0.8.6
 
 POSTGRES_PASSWORD=supersecret
 POSTGRES_USER=myuser
@@ -103,7 +105,7 @@ Then run:
 docker compose up --build -d
 ```
 
-If you already have a PostgreSQL 17 data volume mounted directly at `/var/lib/postgresql/data`, treat the PostgreSQL 18 default as a migration rather than a drop-in path change. Back up and restore the database or follow the official major-upgrade process before reusing existing data.
+If you already have a PostgreSQL 17 data volume mounted directly at `/var/lib/postgresql/data`, treat the move to the compose defaults above as a migration rather than a drop-in path change. Back up and restore the database or follow the official major-upgrade process before reusing existing data with `PGDATA=/var/lib/postgresql/pgdata`.
 
 ## GitHub Actions
 
