@@ -1,8 +1,8 @@
 [
   {
-    "pg_version": "18.3",
-    "postgis_version": "3.6.2",
-    "pgvector_version": "0.8.2",
+    "pg_version": "18.6",
+    "postgis_version": "3.6.4",
+    "pgvector_version": "0.8.6",
     "latest": true
   },
   {
