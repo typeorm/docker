@@ -120,7 +120,7 @@ This setup ensures that TypeORM can connect and utilize PostGIS and pgvector fun
 
 Inherits all environment variables from the official PostgreSQL image. See the [official PostgreSQL image documentation](https://hub.docker.com/_/postgres/) for details.
 
-The image is parameterized by the `PG_VERSION`, `POSTGIS_VERSION`, and `PGVECTOR_VERSION` build arguments.
+The image build is parameterized by the `PG_VERSION`, `POSTGIS_VERSION`, and `PGVECTOR_VERSION` build arguments. These values are used only at build time unless you also set them explicitly as runtime environment variables.
 
 Additional runtime environment variables for the entrypoint script:
 
