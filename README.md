@@ -52,9 +52,11 @@ docker run -d \\
   -e POSTGRES_USER=youruser \\
   -e POSTGRES_DB=yourdb \\
   -p 5432:5432 \\
-  -v postgres_data_volume:/var/lib/postgresql/data \\
+  -v postgres_data_volume:/var/lib/postgresql \\
   your-image-name postgres -c shared_preload_libraries=vector
 ```
+
+For PostgreSQL 18+, mount the parent directory at `/var/lib/postgresql` so the default data directory (`/var/lib/postgresql/18/docker`) is persisted. This parent-directory mount also works for PostgreSQL 17 and earlier.
 
 ### Using `docker-compose.yml`
 
@@ -70,6 +72,8 @@ services:
         PG_VERSION: ${PG_VERSION:-18.3}
         POSTGIS_VERSION: ${POSTGIS_VERSION:-3.6.2}
         PGVECTOR_VERSION: ${PGVECTOR_VERSION:-0.8.2}
+    volumes:
+      - postgres_data:/var/lib/postgresql
     command: postgres -c shared_preload_libraries=vector # Ensures pgvector preloading
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test} # TypeORM test default
@@ -98,6 +102,8 @@ Then run:
 ```bash
 docker compose up --build -d
 ```
+
+If you already have a PostgreSQL 17 data volume mounted directly at `/var/lib/postgresql/data`, treat the PostgreSQL 18 default as a migration rather than a drop-in path change. Back up and restore the database or follow the official major-upgrade process before reusing existing data.
 
 ## GitHub Actions
 
