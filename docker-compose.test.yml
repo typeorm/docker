@@ -20,7 +20,7 @@ services:
       retries: 5
 
   test:
-    image: postgres:${PG_VERSION:-18.3}
+    image: postgres:${PG_MAJOR:-18}
     depends_on:
       postgres:
         condition: service_healthy

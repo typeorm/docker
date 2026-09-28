@@ -137,7 +137,7 @@ To run tests locally using this file:
 docker compose -f docker-compose.test.yml up --build --exit-code-from test
 
 # Test with specific versions by setting environment variables for the compose command:
-PG_VERSION=17.9 POSTGIS_VERSION=3.6.2 PGVECTOR_VERSION=0.8.2 docker compose -f docker-compose.test.yml up --build --exit-code-from test
+PG_VERSION=17.9 PG_MAJOR=17 POSTGIS_VERSION=3.6.2 PGVECTOR_VERSION=0.8.2 docker compose -f docker-compose.test.yml up --build --exit-code-from test
 ```
 
 ## License
