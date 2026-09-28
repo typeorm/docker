@@ -3,17 +3,17 @@ services:
     build:
       context: .
       args:
-        PG_MAJOR_VERSION: ${PG_MAJOR:-16} # Environment variable PG_MAJOR, defaults to 16
-        POSTGIS_MAJOR_VERSION: ${POSTGIS_MAJOR_VERSION:-3} # Environment variable POSTGIS_MAJOR_VERSION, defaults to 3
-        PGVECTOR_TAG: ${PGVECTOR_VERSION:-v0.8.0} # Environment variable PGVECTOR_VERSION, defaults to v0.8.0
+        PG_VERSION: ${PG_VERSION:-18.3} # Environment variable PG_VERSION, defaults to 18.3
+        POSTGIS_VERSION: ${POSTGIS_VERSION:-3.6.2} # Environment variable POSTGIS_VERSION, defaults to 3.6.2
+        PGVECTOR_VERSION: ${PGVECTOR_VERSION:-0.8.2} # Environment variable PGVECTOR_VERSION, defaults to 0.8.2
     environment:
       # TypeORM test defaults, or override with your own .env file
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test}
       POSTGRES_USER: ${POSTGRES_USER:-test}
       POSTGRES_DB: ${POSTGRES_DB:-test}
       ADDITIONAL_DATABASES: ${ADDITIONAL_DATABASES:-}
-      # The following are set inside the Dockerfile from build ARGs for runtime access if needed:
-      # PG_MAJOR_VERSION, POSTGIS_MAJOR_VERSION, PGVECTOR_TAG
+      # The following build args are available while building the image:
+      # PG_VERSION, POSTGIS_VERSION, PGVECTOR_VERSION
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:

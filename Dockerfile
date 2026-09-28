@@ -1,5 +1,5 @@
 # Default versions - can be overridden at build time using --build-arg
-ARG PG_VERSION=17.9
+ARG PG_VERSION=18.3
 ARG POSTGIS_VERSION=3.6.2
 ARG PGVECTOR_VERSION=0.8.2
 
