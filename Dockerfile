@@ -1,7 +1,7 @@
 # Default versions - can be overridden at build time using --build-arg
-ARG PG_VERSION=17.9
-ARG POSTGIS_VERSION=3.6.2
-ARG PGVECTOR_VERSION=0.8.2
+ARG PG_VERSION=18.6
+ARG POSTGIS_VERSION=3.6.4
+ARG PGVECTOR_VERSION=0.8.6
 
 FROM postgres:${PG_VERSION}
 

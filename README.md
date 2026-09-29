@@ -12,18 +12,18 @@ This Docker image extends the official PostgreSQL image with PostGIS and pgvecto
 
 Pre-built images are available on GitHub Container Registry (GHCR). Replace `yourusername/yourrepositoryname` with your actual GHCR path (e.g., `ghcr.io/naorpeled/typeorm-postgres-docker`).
 
-Example tags (refer to the `publish.yml` workflow matrix for all combinations):
+Example tags (refer to `versions.json` and the `publish.yml` workflow matrix for all combinations):
 
-- `ghcr.io/yourusername/yourrepositoryname:pg16-postgis3-pgvectorv0.8.0`
+- `ghcr.io/yourusername/yourrepositoryname:postgres-18.6-postgis-3.6.4-pgvector-0.8.6`
 - `ghcr.io/yourusername/yourrepositoryname:latest` (points to the default latest combination)
 
 ## Build Arguments
 
 The following build arguments can be used with `docker build --build-arg VAR=value` or via the `args` section in `docker-compose.yml` (which can use environment variables from your `.env` file):
 
-- `PG_MAJOR_VERSION`: PostgreSQL major version (default: 16). In `docker-compose.yml`, fed by `PG_MAJOR` env var.
-- `POSTGIS_MAJOR_VERSION`: PostGIS major version (default: 3). In `docker-compose.yml`, fed by `POSTGIS_MAJOR_VERSION` env var.
-- `PGVECTOR_TAG`: pgvector version tag (e.g., `v0.8.0`, default: v0.8.0). In `docker-compose.yml`, fed by `PGVECTOR_VERSION` env var.
+- `PG_VERSION`: PostgreSQL image tag (default: 18.6). In `docker-compose.yml`, fed by the `PG_VERSION` env var.
+- `POSTGIS_VERSION`: PostGIS package version (default: 3.6.4). In `docker-compose.yml`, fed by the `POSTGIS_VERSION` env var.
+- `PGVECTOR_VERSION`: pgvector release version (e.g., `0.8.6`, default: `0.8.6`). In `docker-compose.yml`, fed by the `PGVECTOR_VERSION` env var.
 
 ## Building the Image
 
@@ -33,9 +33,9 @@ docker build -t your-image-name .
 
 # Build with custom versions (using Docker build args)
 docker build \\
-  --build-arg PG_MAJOR_VERSION=15 \\
-  --build-arg POSTGIS_MAJOR_VERSION=3 \\
-  --build-arg PGVECTOR_TAG=v0.7.2 \\
+  --build-arg PG_VERSION=17.9 \\
+  --build-arg POSTGIS_VERSION=3.6.2 \\
+  --build-arg PGVECTOR_VERSION=0.8.2 \\
   -t your-image-name:custom .
 ```
 
@@ -51,10 +51,13 @@ docker run -d \\
   -e POSTGRES_PASSWORD=yourpassword \\
   -e POSTGRES_USER=youruser \\
   -e POSTGRES_DB=yourdb \\
+  -e PGDATA=/var/lib/postgresql/pgdata \\
   -p 5432:5432 \\
-  -v postgres_data_volume:/var/lib/postgresql/data \\
+  -v postgres_data_volume:/var/lib/postgresql \\
   your-image-name postgres -c shared_preload_libraries=vector
 ```
+
+Mount the parent directory at `/var/lib/postgresql` and set `PGDATA` to a subdirectory inside that mount (for example `/var/lib/postgresql/pgdata`). This keeps persistence working for both PostgreSQL 18+ and PostgreSQL 17 and earlier, whose upstream images use different default data directories and volume layouts.
 
 ### Using `docker-compose.yml`
 
@@ -67,14 +70,17 @@ services:
     build:
       context: .
       args:
-        PG_MAJOR_VERSION: ${PG_MAJOR:-16}
-        POSTGIS_MAJOR_VERSION: ${POSTGIS_MAJOR_VERSION:-3}
-        PGVECTOR_TAG: ${PGVECTOR_VERSION:-v0.8.0}
-    command: postgres -c shared_preload_libraries=vector # Ensures pgvector preloading
+        PG_VERSION: ${PG_VERSION:-18.6}
+        POSTGIS_VERSION: ${POSTGIS_VERSION:-3.6.4}
+        PGVECTOR_VERSION: ${PGVECTOR_VERSION:-0.8.6}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test} # TypeORM test default
       POSTGRES_USER: ${POSTGRES_USER:-test} # TypeORM test default
       POSTGRES_DB: ${POSTGRES_DB:-test} # TypeORM test default
+      PGDATA: /var/lib/postgresql/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    command: postgres -c shared_preload_libraries=vector # Ensures pgvector preloading
       # ... other environment variables ...
 ```
 
@@ -82,9 +88,9 @@ Create a `.env` file in the same directory as `docker-compose.yml` to set build 
 
 ```env
 # .env (example)
-PG_MAJOR=16
-POSTGIS_MAJOR_VERSION=3
-PGVECTOR_VERSION=v0.8.0
+PG_VERSION=18.6
+POSTGIS_VERSION=3.6.4
+PGVECTOR_VERSION=0.8.6
 
 POSTGRES_PASSWORD=supersecret
 POSTGRES_USER=myuser
@@ -99,11 +105,13 @@ Then run:
 docker compose up --build -d
 ```
 
+If you already have a PostgreSQL 17 data volume mounted directly at `/var/lib/postgresql/data`, treat the move to the compose defaults above as a migration rather than a drop-in path change. Back up and restore the database or follow the official major-upgrade process before reusing existing data with `PGDATA=/var/lib/postgresql/pgdata`.
+
 ## GitHub Actions
 
 This repository includes GitHub Actions workflows:
 
-- `.github/workflows/test.yml`: Builds the Docker image with a matrix of PostgreSQL versions and pgvector tags, and runs basic extension checks. `POSTGIS_MAJOR_VERSION` is typically fixed (e.g., to 3) in these tests.
+- `.github/workflows/test.yml`: Builds the Docker image with a matrix of PostgreSQL, PostGIS, and pgvector versions from `versions.json`, and runs basic extension checks.
 - `.github/workflows/publish.yml`: Builds and publishes the Docker image to GHCR on tagged releases (e.g., `v1.0.0`). The image name on GHCR will be based on your GitHub username/organization and repository name (e.g., `ghcr.io/yourusername/yourrepositoryname`).
 
 ## TypeORM Compatibility
@@ -120,7 +128,7 @@ This setup ensures that TypeORM can connect and utilize PostGIS and pgvector fun
 
 Inherits all environment variables from the official PostgreSQL image. See the [official PostgreSQL image documentation](https://hub.docker.com/_/postgres/) for details.
 
-The build arguments `PG_MAJOR_VERSION`, `POSTGIS_MAJOR_VERSION`, and `PGVECTOR_TAG` are also exposed as environment variables with the same names within the running container for runtime inspection.
+The image build is parameterized by the `PG_VERSION`, `POSTGIS_VERSION`, and `PGVECTOR_VERSION` build arguments. These values are used only at build time unless you also set them explicitly as runtime environment variables.
 
 Additional runtime environment variables for the entrypoint script:
 
@@ -137,7 +145,7 @@ To run tests locally using this file:
 docker compose -f docker-compose.test.yml up --build --exit-code-from test
 
 # Test with specific versions by setting environment variables for the compose command:
-PG_MAJOR=15 POSTGIS_MAJOR_VERSION=3 PGVECTOR_VERSION=v0.7.2 docker compose -f docker-compose.test.yml up --build --exit-code-from test
+PG_VERSION=17.9 PG_MAJOR=17 POSTGIS_VERSION=3.6.2 PGVECTOR_VERSION=0.8.2 docker compose -f docker-compose.test.yml up --build --exit-code-from test
 ```
 
 ## License
